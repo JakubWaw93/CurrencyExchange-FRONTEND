@@ -1,15 +1,140 @@
 package com.kodilla.currencyexchange.View;
 
+import com.kodilla.currencyexchange.domain.CurrencyDto;
+import com.kodilla.currencyexchange.domain.ExchangeRateDto;
+import com.kodilla.currencyexchange.service.CurrencyService;
+import com.kodilla.currencyexchange.service.ExchangeRateService;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import reactor.core.publisher.Mono;
 
-@Route
+import java.util.List;
+
+@Route("main")
+@PageTitle("Main")
 public class MainView extends VerticalLayout {
 
-    public MainView() {
-        add(new Button("Click me", e -> Notification.show("Hello World!")));
+    private final CurrencyService currencyService;
+    private final ExchangeRateService exchangeRateService;
+
+    private Grid<CurrencyDto> currencyGrid = new Grid<>(CurrencyDto.class);
+    private TextField filterTextField = new TextField("Filter by Code");
+    private Button filterButton = new Button("Filter");
+    private Button addCurrencyButton = new Button("Add Currency");
+
+    private TextField baseCurrencyField = new TextField("Base Currency Code");
+    private TextField targetCurrencyField = new TextField("Target Currency Code");
+    private Button searchExchangeRateButton = new Button("Search Exchange Rates");
+    private Grid<ExchangeRateDto> exchangeRateGrid = new Grid<>(ExchangeRateDto.class);
+
+    public MainView(CurrencyService currencyService, ExchangeRateService exchangeRateService) {
+        this.currencyService = currencyService;
+        this.exchangeRateService = exchangeRateService;
+        configureComponents();
+        addComponents();
+        updateCurrencyList();
+    }
+
+    private void configureComponents() {
+        // Configure the Grid
+        currencyGrid.setColumns("code", "name");
+        currencyGrid.setSizeFull();
+
+        // Configure Filter
+        filterTextField.setPlaceholder("Enter currency code...");
+        filterTextField.setValueChangeMode(ValueChangeMode.EAGER);
+        filterButton.addClickListener(e -> {
+            updateCurrencyList(filterTextField.getValue());
+        });
+
+        addCurrencyButton.addClickListener(e -> {
+            getUI().ifPresent(ui -> ui.navigate("add-currency"));
+        });
+
+        // Configure exchange rate search components
+        baseCurrencyField.setPlaceholder("Enter base currency code...");
+        targetCurrencyField.setPlaceholder("Enter target currency code...");
+        searchExchangeRateButton.addClickListener(e -> updateExchangeRateList());
+        exchangeRateGrid.setColumns("baseCurrencyCode", "targetCurrencyCode", "rate", "lastUpdateTime");
+        exchangeRateGrid.setSizeFull();
+    }
+
+    private void addComponents() {
+        add(filterTextField, filterButton, addCurrencyButton, currencyGrid,
+                baseCurrencyField, targetCurrencyField, searchExchangeRateButton, exchangeRateGrid);
+        setSizeFull();
+        currencyGrid.setSizeFull();
+        exchangeRateGrid.setSizeFull();
+    }
+
+    private void updateCurrencyList() {
+        currencyService.getAllCurrencies()
+                .collectList()
+                .subscribe(currencies -> {
+                    getUI().ifPresent(ui -> ui.access(() -> {
+                        currencyGrid.setItems(currencies);
+                        currencyGrid.getDataProvider().refreshAll();
+                    }));
+                });
+    }
+
+    private void updateCurrencyList(String code) {
+        if (code.isEmpty()) {
+            updateCurrencyList();
+        } else {
+            currencyService.getCurrencyByCode(code)
+                    .subscribe(currency -> {
+                        getUI().ifPresent(ui -> ui.access(() -> {
+                            if (currency != null) {
+                                currencyGrid.setItems(currency);
+                            } else {
+                                Notification.show("No currency found with code: " + code, 5000, Notification.Position.MIDDLE);
+                                currencyGrid.setItems();  // Clear grid or handle as needed
+                            }
+                        }));
+                    }, error -> {
+                        getUI().ifPresent(ui -> ui.access(() ->
+                                Notification.show("Error retrieving currency: " + error.getMessage(), 5000, Notification.Position.MIDDLE)
+                        ));
+                    });
+        }
+    }
+
+    private void updateExchangeRateList() {
+        String baseCode = baseCurrencyField.getValue().trim();
+        String targetCode = targetCurrencyField.getValue().trim();
+
+        Mono<List<ExchangeRateDto>> ratesMono;
+        if (!baseCode.isEmpty() && !targetCode.isEmpty()) {
+            ratesMono = exchangeRateService.getExchangeRatesByBaseAndTargetCurrencyCodes(baseCode, targetCode).collectList();
+        } else if (!baseCode.isEmpty()) {
+            ratesMono = exchangeRateService.getExchangeRatesByBaseCurrencyCode(baseCode).collectList();
+        } else if (!targetCode.isEmpty()) {
+            ratesMono = exchangeRateService.getExchangeRatesByTargetCurrencyCode(targetCode).collectList();
+        } else {
+            ratesMono = exchangeRateService.getAllExchangeRates().collectList();
+        }
+
+        ratesMono.subscribe(rates -> {
+            getUI().ifPresent(ui -> ui.access(() -> {
+                if (!rates.isEmpty()) {
+                    exchangeRateGrid.setItems(rates);
+                } else {
+                    Notification.show("No exchange rates found for the provided criteria", 5000, Notification.Position.MIDDLE);
+                    exchangeRateGrid.setItems();
+                }
+            }));
+        }, error -> {
+            getUI().ifPresent(ui -> ui.access(() ->
+                    Notification.show("Error retrieving exchange rates: " + error.getMessage(), 5000, Notification.Position.MIDDLE)
+            ));
+        });
     }
 
 }

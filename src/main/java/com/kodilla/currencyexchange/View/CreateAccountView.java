@@ -14,9 +14,10 @@ import com.vaadin.flow.router.Route;
 @PageTitle("Register")
 public class CreateAccountView extends VerticalLayout {
 
-    private final RegisterService registerService = new RegisterService();
+    private final RegisterService registerService;
 
-    public CreateAccountView() {
+    public CreateAccountView(RegisterService registerService) {
+        this.registerService = registerService;
         TextField firstnameField = new TextField("First name");
         TextField lastnameField = new TextField("Last name");
         TextField loginField = new TextField("Login");
