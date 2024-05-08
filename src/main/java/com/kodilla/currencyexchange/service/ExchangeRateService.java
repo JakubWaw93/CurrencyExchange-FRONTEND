@@ -7,9 +7,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 
- @Service
+@Service
  public class ExchangeRateService {
 
     private final WebClient webClient;
@@ -26,15 +27,15 @@ import reactor.core.publisher.Flux;
                  .bodyToFlux(ExchangeRateDto.class);
      }
 
-     public Flux<ExchangeRateDto> getExchangeRatesByBaseAndTargetCurrencyCodes(String baseCode, String targetCode) {
+     public Mono<ExchangeRateDto> getExchangeRateByBaseAndTargetCurrencyCodes(String baseCode, String targetCode) {
          String url = String.format("/exchangerates/codes/"+baseCode+"/"+targetCode);
          return webClient.get()
                  .uri(url)
                  .retrieve()
-                 .bodyToFlux(ExchangeRateDto.class)
+                 .bodyToMono(ExchangeRateDto.class)
                  .onErrorResume( e -> {
                      logger.error("Failed to fetch exchange rates for base {} and target {}: {}", baseCode, targetCode, e.getMessage());
-                     return Flux.empty();
+                     return Mono.empty();
                  });
      }
 

@@ -7,13 +7,17 @@ import com.kodilla.currencyexchange.service.ExchangeRateService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinSession;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
 import java.util.List;
 
 @Route("main")
@@ -27,6 +31,9 @@ public class MainView extends VerticalLayout {
     private TextField filterTextField = new TextField("Filter by Code");
     private Button filterButton = new Button("Filter");
     private Button addCurrencyButton = new Button("Add Currency");
+    private Button logoutButton = new Button("Logout");
+    private Button transactionsButton = new Button("Transactions");
+    private Button stationaryOfficesButton = new Button("Find us locally");
 
     private TextField baseCurrencyField = new TextField("Base Currency Code");
     private TextField targetCurrencyField = new TextField("Target Currency Code");
@@ -42,22 +49,28 @@ public class MainView extends VerticalLayout {
     }
 
     private void configureComponents() {
-        // Configure the Grid
         currencyGrid.setColumns("code", "name");
         currencyGrid.setSizeFull();
 
-        // Configure Filter
         filterTextField.setPlaceholder("Enter currency code...");
         filterTextField.setValueChangeMode(ValueChangeMode.EAGER);
+
         filterButton.addClickListener(e -> {
             updateCurrencyList(filterTextField.getValue());
         });
-
         addCurrencyButton.addClickListener(e -> {
             getUI().ifPresent(ui -> ui.navigate("add-currency"));
         });
+        logoutButton.addClickListener(e -> {
+            getUI().ifPresent(ui -> ui.navigate("login"));
+        });
+        transactionsButton.addClickListener(e -> {
+            getUI().ifPresent(ui -> ui.navigate("transactions"));
+        });
+        stationaryOfficesButton.addClickListener(e -> {
+            getUI().ifPresent(ui -> ui.navigate("stationary-offices"));
+        });
 
-        // Configure exchange rate search components
         baseCurrencyField.setPlaceholder("Enter base currency code...");
         targetCurrencyField.setPlaceholder("Enter target currency code...");
         searchExchangeRateButton.addClickListener(e -> updateExchangeRateList());
@@ -66,11 +79,15 @@ public class MainView extends VerticalLayout {
     }
 
     private void addComponents() {
-        add(filterTextField, filterButton, addCurrencyButton, currencyGrid,
-                baseCurrencyField, targetCurrencyField, searchExchangeRateButton, exchangeRateGrid);
+        HorizontalLayout topBar = new HorizontalLayout();
+        topBar.setWidthFull();
+        topBar.add(filterTextField, filterButton, addCurrencyButton);
+        topBar.add(transactionsButton, stationaryOfficesButton, logoutButton);
+        topBar.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        topBar.setDefaultVerticalComponentAlignment(Alignment.CENTER);
+
+        add(topBar, currencyGrid, baseCurrencyField, targetCurrencyField, searchExchangeRateButton, exchangeRateGrid);
         setSizeFull();
-        currencyGrid.setSizeFull();
-        exchangeRateGrid.setSizeFull();
     }
 
     private void updateCurrencyList() {
@@ -95,7 +112,7 @@ public class MainView extends VerticalLayout {
                                 currencyGrid.setItems(currency);
                             } else {
                                 Notification.show("No currency found with code: " + code, 5000, Notification.Position.MIDDLE);
-                                currencyGrid.setItems();  // Clear grid or handle as needed
+                                currencyGrid.setItems();
                             }
                         }));
                     }, error -> {
@@ -112,7 +129,7 @@ public class MainView extends VerticalLayout {
 
         Mono<List<ExchangeRateDto>> ratesMono;
         if (!baseCode.isEmpty() && !targetCode.isEmpty()) {
-            ratesMono = exchangeRateService.getExchangeRatesByBaseAndTargetCurrencyCodes(baseCode, targetCode).collectList();
+            ratesMono = exchangeRateService.getExchangeRateByBaseAndTargetCurrencyCodes(baseCode, targetCode).map(Collections::singletonList);
         } else if (!baseCode.isEmpty()) {
             ratesMono = exchangeRateService.getExchangeRatesByBaseCurrencyCode(baseCode).collectList();
         } else if (!targetCode.isEmpty()) {

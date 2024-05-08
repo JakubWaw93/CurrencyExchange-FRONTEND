@@ -1,6 +1,6 @@
 package com.kodilla.currencyexchange.View;
 
-import com.kodilla.currencyexchange.service.RegisterService;
+import com.kodilla.currencyexchange.service.UserService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -14,10 +14,11 @@ import com.vaadin.flow.router.Route;
 @PageTitle("Register")
 public class CreateAccountView extends VerticalLayout {
 
-    private final RegisterService registerService;
 
-    public CreateAccountView(RegisterService registerService) {
-        this.registerService = registerService;
+    private final UserService userService;
+
+    public CreateAccountView(UserService userService) {
+        this.userService = userService;
         TextField firstnameField = new TextField("First name");
         TextField lastnameField = new TextField("Last name");
         TextField loginField = new TextField("Login");
@@ -27,10 +28,13 @@ public class CreateAccountView extends VerticalLayout {
         Button registerButton = new Button("Register", event -> {
 
             UI ui = UI.getCurrent();
-            registerService.registerUser(firstnameField.getValue(), lastnameField.getValue(), loginField.getValue(), passwordField.getValue(), emailField.getValue(), ui);
+            userService.registerUser(firstnameField.getValue(), lastnameField.getValue(), loginField.getValue(), passwordField.getValue(), emailField.getValue(), ui);
+        });
+        Button cancelButton = new Button("Cancel", event -> {
+            UI.getCurrent().navigate("login");
         });
 
-        add(firstnameField, lastnameField, loginField, passwordField, emailField, registerButton);
+        add(firstnameField, lastnameField, loginField, passwordField, emailField, registerButton, cancelButton);
     }
 
 }
